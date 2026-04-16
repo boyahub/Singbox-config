@@ -1,0 +1,40 @@
+name: 转换订阅配置
+
+on:
+  # 每6小时自动运行一次
+  schedule:
+    - cron: '0 */6 * * *'
+  # 手动触发
+  workflow_dispatch:
+  # push时触发
+  push:
+    branches: [ main ]
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+      
+      - name: 设置Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: 运行转换脚本
+        env:
+          SUBSCRIBE_URL: ${{ secrets.SUBSCRIBE_URL }}
+        run: |
+          # 用环境变量替换脚本中的订阅链接
+          sed -i "s|https://你的订阅地址|${SUBSCRIBE_URL}|g" convert.py
+          python convert.py
+      
+      - name: 提交生成的配置
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add output/config.json
+          git diff --staged --quiet || git commit -m "自动更新配置 $(date '+%Y-%m-%d %H:%M')"
+          git push
